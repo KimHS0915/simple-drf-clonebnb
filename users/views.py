@@ -2,6 +2,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from rooms.models import Room
+from rooms.serializers import RoomSerializer
 from .serializers import ReadUserSerializer, WriteUserSerializer
 from .models import User
 
@@ -10,11 +12,11 @@ from .models import User
 @permission_classes([IsAuthenticated])
 def me_view(request):
 
-    if (request.method == "GET"):
+    if request.method == "GET":
         serializer = ReadUserSerializer(request.user)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-    elif (request.method == "PUT"):
+    elif request.method == "PUT":
         serializer = WriteUserSerializer(request.user, data=request.data, partial=True)
         if serializer.is_valid():
             user = serializer.save()
@@ -26,7 +28,7 @@ def me_view(request):
 
 @api_view(["GET"])
 def user_view(request, pk):
-    if (request.method == "GET"):
+    if request.method == "GET":
         try:
             user = User.objects.get(pk=pk)
             serializer = ReadUserSerializer(user)
@@ -35,3 +37,26 @@ def user_view(request, pk):
             return Response(status=status.HTTP_404_NOT_FOUND)
 
 
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def toggle_fav(request):
+
+    if request.method == "GET":
+        user = request.user
+        serializer = RoomSerializer(user.favs.all(), many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == "POST":
+        pk = request.data.get("pk", None)
+        user = request.user
+        if pk is not None:
+            try:
+                room = Room.objects.get(pk=pk)
+                if room in user.favs.all():
+                    user.favs.remove(room)
+                else:
+                    user.favs.add(room)
+                return Response(status=status.HTTP_200_OK)
+            except Room.DoesNotExist:
+                pass
+        return Response(status=status.HTTP_400_BAD_REQUEST)
