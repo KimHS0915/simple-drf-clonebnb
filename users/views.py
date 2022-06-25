@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rooms.models import Room
 from rooms.serializers import RoomSerializer
-from .serializers import ReadUserSerializer, WriteUserSerializer
+from .serializers import UserSerializer
 from .models import User
 
 
@@ -13,14 +13,14 @@ from .models import User
 def me_view(request):
 
     if request.method == "GET":
-        serializer = ReadUserSerializer(request.user)
+        serializer = UserSerializer(request.user)
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == "PUT":
-        serializer = WriteUserSerializer(request.user, data=request.data, partial=True)
+        serializer = UserSerializer(request.user, data=request.data, partial=True)
         if serializer.is_valid():
             user = serializer.save()
-            user_serializer = ReadUserSerializer(user)
+            user_serializer = UserSerializer(user)
             return Response(data=user_serializer.data, status=status.HTTP_200_OK)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -31,7 +31,7 @@ def user_view(request, pk):
     if request.method == "GET":
         try:
             user = User.objects.get(pk=pk)
-            serializer = ReadUserSerializer(user)
+            serializer = UserSerializer(user)
             return Response(data=serializer.data, status=status.HTTP_200_OK)
         except User.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -60,3 +60,16 @@ def toggle_fav(request):
             except Room.DoesNotExist:
                 pass
         return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+def create_account(request):
+
+    if request.method == "POST":
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            user_serializer = UserSerializer(user)
+            return Response(data=user_serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
