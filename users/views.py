@@ -1,3 +1,6 @@
+from django.conf import settings
+from django.contrib.auth import authenticate
+import jwt
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -73,3 +76,18 @@ def create_account(request):
             return Response(data=user_serializer.data, status=status.HTTP_200_OK)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+def login(request):
+
+    if request.method == "POST":
+        username = request.data.get("username")
+        password = request.data.get("password")
+        if not username or not password:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        user = authenticate(username=username, password=password)
+        if user is None:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        encoded_jwt = jwt.encode({"pk": user.pk}, settings.SECRET_KEY, algorithm="HS256")
+        return Response(data={"token": encoded_jwt})
