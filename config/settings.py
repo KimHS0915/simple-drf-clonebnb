@@ -134,3 +134,13 @@ MEDIA_URL = "/media/"
 # Auth
 
 AUTH_USER_MODEL = "users.User"
+
+
+# REST_FRAMEWORK
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "config.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+}
