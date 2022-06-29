@@ -14,7 +14,7 @@ def rooms_view(request):
         paginator.page_size = 20
         rooms = Room.objects.all()
         results = paginator.paginate_queryset(rooms, request)
-        serializer = RoomSerializer(results, many=True)
+        serializer = RoomSerializer(results, many=True, context={"request": request})
         return paginator.get_paginated_response(serializer.data)
 
     elif (request.method == "POST"):
@@ -44,7 +44,7 @@ def room_view(request, pk):
         room = get_room(pk)
         if room is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        serializer = RoomSerializer(room)
+        serializer = RoomSerializer(room, context={"request": request})
         return Response(data=serializer.data)
 
     elif (request.method == "PUT"):
