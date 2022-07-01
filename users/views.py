@@ -1,8 +1,7 @@
 from django.conf import settings
 from django.contrib.auth import authenticate
 import jwt
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import action
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAdminUser, AllowAny
 from rest_framework.response import Response
@@ -22,90 +21,42 @@ class UsersViewSet(ModelViewSet):
     def get_permissions(self):
         if self.action == "list":
             permission_classes = [IsAdminUser]
-        elif self.action == "create" or self.action == "retrieve":
+        elif self.action == "create" or self.action == "retrieve" or self.action == "favs":
             permission_classes = [AllowAny]
         else:
-            permission_classes = [IsSelf | IsAdminUser]
+            permission_classes = [IsSelf]
         return [permission() for permission in permission_classes]
 
+    @action(detail=False, methods=["POST"])
+    def login(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        if not username or not password:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        user = authenticate(username=username, password=password)
+        if user is None:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        encoded_jwt = jwt.encode({"pk": user.pk}, settings.SECRET_KEY, algorithm="HS256")
+        return Response(data={"token": encoded_jwt, "id": user.pk})
 
-# @api_view(["GET", "PUT"])
-# @permission_classes([IsAuthenticated])
-# def me_view(request):
+    @action(detail=True)
+    def favs(self, request, pk):
+        user = self.get_object()
+        serializer = RoomSerializer(user.favs.all(), many=True, context={"request": request})
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-#     if request.method == "GET":
-#         serializer = UserSerializer(request.user)
-#         return Response(data=serializer.data, status=status.HTTP_200_OK)
-
-#     elif request.method == "PUT":
-#         serializer = UserSerializer(request.user, data=request.data, partial=True)
-#         if serializer.is_valid():
-#             user = serializer.save()
-#             user_serializer = UserSerializer(user)
-#             return Response(data=user_serializer.data, status=status.HTTP_200_OK)
-#         else:
-#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-# @api_view(["GET"])
-# def user_view(request, pk):
-#     if request.method == "GET":
-#         try:
-#             user = User.objects.get(pk=pk)
-#             serializer = UserSerializer(user)
-#             return Response(data=serializer.data, status=status.HTTP_200_OK)
-#         except User.DoesNotExist:
-#             return Response(status=status.HTTP_404_NOT_FOUND)
-
-
-# @api_view(["GET", "POST"])
-# @permission_classes([IsAuthenticated])
-# def toggle_fav(request):
-
-#     if request.method == "GET":
-#         user = request.user
-#         serializer = RoomSerializer(user.favs.all(), many=True)
-#         return Response(data=serializer.data, status=status.HTTP_200_OK)
-
-#     elif request.method == "POST":
-#         pk = request.data.get("pk", None)
-#         user = request.user
-#         if pk is not None:
-#             try:
-#                 room = Room.objects.get(pk=pk)
-#                 if room in user.favs.all():
-#                     user.favs.remove(room)
-#                 else:
-#                     user.favs.add(room)
-#                 return Response(status=status.HTTP_200_OK)
-#             except Room.DoesNotExist:
-#                 pass
-#         return Response(status=status.HTTP_400_BAD_REQUEST)
-
-
-# @api_view(["POST"])
-# def create_account(request):
-
-#     if request.method == "POST":
-#         serializer = UserSerializer(data=request.data)
-#         if serializer.is_valid():
-#             user = serializer.save()
-#             user_serializer = UserSerializer(user)
-#             return Response(data=user_serializer.data, status=status.HTTP_200_OK)
-#         else:
-#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-# @api_view(["POST"])
-# def login(request):
-
-#     if request.method == "POST":
-#         username = request.data.get("username")
-#         password = request.data.get("password")
-#         if not username or not password:
-#             return Response(status=status.HTTP_400_BAD_REQUEST)
-#         user = authenticate(username=username, password=password)
-#         if user is None:
-#             return Response(status=status.HTTP_401_UNAUTHORIZED)
-#         encoded_jwt = jwt.encode({"pk": user.pk}, settings.SECRET_KEY, algorithm="HS256")
-#         return Response(data={"token": encoded_jwt})
+    @favs.mapping.put
+    def toggle_favs(self, request, pk):
+        pk = request.data.get("pk", None)
+        user = self.get_object()
+        if pk is not None:
+            try:
+                room = Room.objects.get(pk=pk)
+                if room in user.favs.all():
+                    user.favs.remove(room)
+                else:
+                    user.favs.add(room)
+                return Response(status=status.HTTP_200_OK)
+            except Room.DoesNotExist:
+                pass
+        return Response(status=status.HTTP_400_BAD_REQUEST)
