@@ -60,3 +60,14 @@ class UsersViewSet(ModelViewSet):
             except Room.DoesNotExist:
                 pass
         return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["GET"])
+    def rooms(self, request, pk):
+        if pk is not None:
+            try:
+                rooms = Room.objects.filter(user__id__exact=pk)
+                serializer = RoomSerializer(rooms, many=True)
+                return Response(data=serializer.data, status=status.HTTP_200_OK)
+            except Room.DoesNotExist:
+                pass
+        return Response(status=status.HTTP_400_BAD_REQUEST)
